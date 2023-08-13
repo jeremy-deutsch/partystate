@@ -1,0 +1,16 @@
+
+# Optional npm cache directory
+.npm
+
+# Dependency directories
+node_modules/
+
+# Build output
+dist/
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test

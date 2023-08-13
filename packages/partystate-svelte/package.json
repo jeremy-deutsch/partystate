@@ -1,0 +1,27 @@
+{
+  "name": "partystate-svelte",
+  "version": "0.0.1",
+  "description": "",
+  "source": "src/index.ts",
+  "main": "dist/main.js",
+  "module": "dist/module.js",
+  "types": "dist/types.d.ts",
+  "scripts": {
+    "watch": "parcel watch",
+    "build": "parcel build"
+  },
+  "devDependencies": {
+    "@parcel/packager-ts": "^2.9.3",
+    "@parcel/transformer-typescript-types": "^2.9.3",
+    "parcel": "latest",
+    "svelte": "^4.0.5",
+    "typescript": "^5.1.6"
+  },
+  "peerDependencies": {
+    "svelte": "^4.0.5"
+  },
+  "dependencies": {
+    "immer": "^10.0.2",
+    "partysocket": "^0.0.0-a5b3dda"
+  }
+}
