@@ -21,15 +21,57 @@ const ON_CONNECT_URL_SEARCH_PARAM = "__onConnectParam";
 
 const STATE_KEY = "$$state";
 
-export function createHandlers<State, Action>(
+/**
+ * The server state must implement this interface.
+ * Only the `public` field will be sent to the client.
+ */
+interface PartiallyPublic {
+  public: any;
+}
+
+/**
+ * Given a list of patches to an object, returns the patches for patching
+ * the `.public` field of that object.
+ */
+function patchesToPublic(patches: Patch[]): Patch[] {
+  const result: Patch[] = [];
+  for (const patch of patches) {
+    if (patch.path[0] === "public") {
+      result.push({ ...patch, path: patch.path.slice(1) });
+    }
+  }
+  return result;
+}
+
+async function sendStateToClient<
+  StateWrapper extends { state: PartiallyPublic; version: number }
+>(websocket: PartyKitConnection, room: PartyKitRoom) {
+  const persistedState: Immutable<StateWrapper> | undefined =
+    await room.storage.get(STATE_KEY);
+  if (persistedState == null) {
+    throw new Error("the current state shouldn't disappear!");
+  }
+  const { state, version } = persistedState;
+  websocket.send(
+    JSON.stringify({
+      type: "state",
+      value: { state: state.public, version },
+    })
+  );
+}
+
+/**
+ * Creates PartyKit hooks that update and persist the state of a room, plus
+ * communicate that state with clients.
+ */
+export function createHandlers<State extends PartiallyPublic, Action>(
   initialState: Immutable<State>,
+  /** Updates the state based on the last event received. */
   reducer: (
     state: State,
-    action: { action: Action | BuiltInActions; sender: string }
+    event: { action: Action | BuiltInActions; sender: string }
   ) => undefined,
-  options: {
-    persistState?: boolean;
-  } = {}
+  options: { persistState?: boolean } = {}
 ): {
   onConnect: NonNullable<PartyKitServer["onConnect"]>;
   onMessage: NonNullable<PartyKitServer["onMessage"]>;
@@ -57,6 +99,7 @@ export function createHandlers<State, Action>(
     }
     return [{ state: newState, version: stateWrapper.version + 1 }, patches];
   };
+
   async function handleAction(
     action: Action | BuiltInActions,
     websocket: PartyKitConnection,
@@ -75,7 +118,11 @@ export function createHandlers<State, Action>(
     if (maybeNextState != null) {
       const [nextState, patches] = maybeNextState;
       room.broadcast(
-        JSON.stringify({ type: "patches", patches, version: nextState.version })
+        JSON.stringify({
+          type: "patches",
+          patches: patchesToPublic(patches),
+          version: nextState.version,
+        })
       );
       await room.storage.put(STATE_KEY, nextState);
     }
@@ -99,22 +146,12 @@ export function createHandlers<State, Action>(
         websocket,
         room
       );
-      websocket.send(
-        JSON.stringify({
-          type: "state",
-          value: await room.storage.get(STATE_KEY),
-        })
-      );
+      await sendStateToClient(websocket, room);
     },
     async onMessage(message, websocket, room) {
       if (typeof message === "string") {
         if (message === "$$refresh_state") {
-          websocket.send(
-            JSON.stringify({
-              type: "state",
-              value: await room.storage.get(STATE_KEY),
-            })
-          );
+          await sendStateToClient(websocket, room);
         } else {
           const messageJSON = JSON.parse(message);
           await handleAction(messageJSON, websocket, room);

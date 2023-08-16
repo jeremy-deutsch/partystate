@@ -10,12 +10,22 @@ import { type Readable, derived, writable } from "svelte/store";
 
 export function createPartyState<State extends Objectish, Action>(
   partySocketOptions: PartySocketOptions,
-  otherOptions: { onConnectParams?: any } = {}
-) {
+  otherOptions: {
+    /** If provided, this gets included in the "connect" action on the server. */
+    onConnectParams?: { [param: string]: any };
+  } = {}
+): {
+  /** The ID of the underlying PartySocket. */
+  id: string;
+  /** Sends an Action to be handled by the PartyState server handler. */
+  send: (event: Action) => void;
+  /** Once the state is loaded, resolves to a Readable wrapping that state. */
+  stateReadablePromise: Promise<Readable<Immutable<State>>>;
+} {
   enablePatches();
 
   let query: Record<string, string> | undefined;
-  if (otherOptions.onConnectParams) {
+  if (otherOptions.onConnectParams != null) {
     query = {
       ...partySocketOptions.query,
       __onConnectParam: JSON.stringify(otherOptions.onConnectParams),
@@ -25,10 +35,6 @@ export function createPartyState<State extends Objectish, Action>(
   }
 
   const socket = new PartySocket({ ...partySocketOptions, query });
-
-  // socket.addEventListener("message", (e) => {
-  //   console.log("message:", e.data);
-  // });
 
   function send(event: Action) {
     socket.send(JSON.stringify(event));
@@ -44,7 +50,8 @@ export function createPartyState<State extends Objectish, Action>(
   } | null>(null);
   const queuedPatches = new Map<number, Patch[]>();
   let refreshTimeout: number | null = null;
-  socket.addEventListener("message", (e) => {
+
+  function handleMessage(e: MessageEvent) {
     if (typeof e.data === "string") {
       const message: MessageTypes = JSON.parse(e.data);
       stateWritable.update((current) => {
@@ -89,7 +96,9 @@ export function createPartyState<State extends Objectish, Action>(
         return { state: applyPatches(baseState, patches), version };
       });
     }
-  });
+  }
+
+  socket.addEventListener("message", handleMessage);
 
   const stateReadablePromise = new Promise<Readable<Immutable<State>>>(
     (resolve, reject) => {
