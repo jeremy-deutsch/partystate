@@ -10,6 +10,8 @@ import {
 import PartySocket, { type PartySocketOptions } from "partysocket";
 import { type Readable, derived, writable } from "svelte/store";
 
+const MESSAGE_PREFIX = "$$ps";
+
 let nextEventId = 0;
 
 export function createPartyState<State extends Objectish, Action>(
@@ -54,7 +56,7 @@ export function createPartyState<State extends Objectish, Action>(
     optimisticUpdates?: (state: Draft<State>) => void
   ) {
     nextEventId++;
-    socket.send(JSON.stringify({ event, id: nextEventId }));
+    socket.send(MESSAGE_PREFIX + JSON.stringify({ event, id: nextEventId }));
     const onCompletePromise = inFlightMessageManager.getOnCompletePromise(
       nextEventId,
       optimisticUpdates
@@ -81,8 +83,10 @@ export function createPartyState<State extends Objectish, Action>(
   let refreshTimeout: number | null = null;
 
   function handleMessage(e: MessageEvent) {
-    if (typeof e.data === "string") {
-      const message: MessageTypes = JSON.parse(e.data);
+    if (typeof e.data === "string" && e.data.startsWith(MESSAGE_PREFIX)) {
+      const message: MessageTypes = JSON.parse(
+        e.data.slice(MESSAGE_PREFIX.length)
+      );
 
       if (message.type === "state") {
         inFlightMessageManager.resolveAllInFlightMessages();
@@ -151,14 +155,20 @@ export function createPartyState<State extends Objectish, Action>(
   const stateReadablePromise = new Promise<Readable<Immutable<State>>>(
     (resolve, reject) => {
       function onStateMessage(e: MessageEvent) {
-        const message: MessageTypes = JSON.parse(e.data);
-        if (message.type === "state") {
-          resolve(
-            derived(stateWritable, ($stateWritable) =>
-              inFlightMessageManager.runOptimisticUpdates($stateWritable!.state)
-            )
+        if (typeof e.data === "string" && e.data.startsWith(MESSAGE_PREFIX)) {
+          const message: MessageTypes = JSON.parse(
+            e.data.slice(MESSAGE_PREFIX.length)
           );
-          unsubscribe();
+          if (message.type === "state") {
+            resolve(
+              derived(stateWritable, ($stateWritable) =>
+                inFlightMessageManager.runOptimisticUpdates(
+                  $stateWritable!.state
+                )
+              )
+            );
+            unsubscribe();
+          }
         }
       }
 

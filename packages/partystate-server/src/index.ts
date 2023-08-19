@@ -21,6 +21,8 @@ const ON_CONNECT_URL_SEARCH_PARAM = "__onConnectParam";
 
 const STATE_KEY = "$$state";
 
+const MESSAGE_PREFIX = "$$ps";
+
 /**
  * The server state must implement this interface.
  * Only the `public` field will be sent to the client.
@@ -53,10 +55,11 @@ async function sendStateToClient<
   }
   const { state, version } = persistedState;
   websocket.send(
-    JSON.stringify({
-      type: "state",
-      value: { state: state.public, version },
-    })
+    MESSAGE_PREFIX +
+      JSON.stringify({
+        type: "state",
+        value: { state: state.public, version },
+      })
   );
 }
 
@@ -118,11 +121,12 @@ export function createHandlers<State extends PartiallyPublic, Action>(
     if (maybeNextState != null) {
       const [nextState, patches] = maybeNextState;
       room.broadcast(
-        JSON.stringify({
-          type: "patches",
-          patches: patchesToPublic(patches),
-          version: nextState.version,
-        })
+        MESSAGE_PREFIX +
+          JSON.stringify({
+            type: "patches",
+            patches: patchesToPublic(patches),
+            version: nextState.version,
+          })
       );
       await room.storage.put(STATE_KEY, nextState);
       return nextState;
@@ -154,13 +158,14 @@ export function createHandlers<State extends PartiallyPublic, Action>(
       if (typeof message === "string") {
         if (message === "$$refresh_state") {
           await sendStateToClient(websocket, room);
-        } else {
-          const messageJSON = JSON.parse(message);
+        } else if (message.startsWith(MESSAGE_PREFIX)) {
+          const messageJSON = JSON.parse(message.slice(MESSAGE_PREFIX.length));
           const { event, id: eventId } = messageJSON;
           const atVersion = (await handleAction(event, websocket, room))
             .version;
           websocket.send(
-            JSON.stringify({ type: "resolve", eventId, atVersion })
+            MESSAGE_PREFIX +
+              JSON.stringify({ type: "resolve", eventId, atVersion })
           );
         }
       }
