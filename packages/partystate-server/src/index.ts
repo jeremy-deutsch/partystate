@@ -125,7 +125,9 @@ export function createHandlers<State extends PartiallyPublic, Action>(
         })
       );
       await room.storage.put(STATE_KEY, nextState);
+      return nextState;
     }
+    return currentState;
   }
   return {
     async onConnect(websocket, room, ctx) {
@@ -154,7 +156,12 @@ export function createHandlers<State extends PartiallyPublic, Action>(
           await sendStateToClient(websocket, room);
         } else {
           const messageJSON = JSON.parse(message);
-          await handleAction(messageJSON, websocket, room);
+          const { event, id: eventId } = messageJSON;
+          const atVersion = (await handleAction(event, websocket, room))
+            .version;
+          websocket.send(
+            JSON.stringify({ type: "resolve", eventId, atVersion })
+          );
         }
       }
     },
