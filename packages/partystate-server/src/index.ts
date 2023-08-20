@@ -15,6 +15,11 @@ export type BuiltInActions =
   | { type: "close" }
   | { type: "error"; error: Error };
 
+export type HandlerEvent<CustomActions> = {
+  action: CustomActions | BuiltInActions;
+  sender: string;
+};
+
 const closeAction = Object.freeze({ type: "close" });
 
 const ON_CONNECT_URL_SEARCH_PARAM = "__onConnectParam";
