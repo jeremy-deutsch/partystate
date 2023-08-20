@@ -1,5 +1,4 @@
 import {
-  Draft,
   Immutable,
   Objectish,
   Patch,
@@ -30,7 +29,7 @@ export function createPartyState<State extends Objectish, Action>(
     /**
      * Expected changes to apply optimistically to the state.
      * Passes a mutable draft of the state using Immer. */
-    optimisticUpdates?: (state: Draft<State>) => void
+    optimisticUpdates?: (state: State) => void
   ) => Promise<void>;
   /** Once the state is loaded, resolves to a Readable wrapping that state. */
   stateReadablePromise: Promise<Readable<Immutable<State>>>;
@@ -51,10 +50,7 @@ export function createPartyState<State extends Objectish, Action>(
 
   const inFlightMessageManager = new InFlightMessageManager<State>();
 
-  function send(
-    event: Action,
-    optimisticUpdates?: (state: Draft<State>) => void
-  ) {
+  function send(event: Action, optimisticUpdates?: (state: State) => void) {
     nextEventId++;
     socket.send(MESSAGE_PREFIX + JSON.stringify({ event, id: nextEventId }));
     const onCompletePromise = inFlightMessageManager.getOnCompletePromise(
@@ -200,12 +196,12 @@ class InFlightMessageManager<State> {
       | { type: "version"; version: number }
       | { type: "eventId"; eventId: number };
     resolve: () => void;
-    optimisticUpdates: ((state: Draft<State>) => void) | undefined;
+    optimisticUpdates: ((state: State) => void) | undefined;
   }> = [];
 
   getOnCompletePromise(
     eventId: number,
-    optimisticUpdates: ((state: Draft<State>) => void) | undefined
+    optimisticUpdates: ((state: State) => void) | undefined
   ): Promise<void> {
     return new Promise((resolve) => {
       this.#inFlight.push({
@@ -278,7 +274,7 @@ class InFlightMessageManager<State> {
       return state;
     }
 
-    return produce(state, (draftState: Draft<State>): void => {
+    return produce(state, (draftState: State): void => {
       for (const { optimisticUpdates } of this.#inFlight) {
         if (optimisticUpdates) {
           optimisticUpdates(draftState);
