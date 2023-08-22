@@ -4,6 +4,8 @@ Remote state management for PartyKit
 
 Docs to come!
 
+I built a little example game with this: [Word Guesser](https://github.com/jeremy-deutsch/word-guesser)
+
 ## Install
 
 ```sh
