@@ -22,6 +22,6 @@
   },
   "dependencies": {
     "immer": "^10.0.2",
-    "partysocket": "^0.0.0-a5b3dda"
+    "partysocket": "0.0.0-18c0543"
   }
 }

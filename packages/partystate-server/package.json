@@ -1,6 +1,6 @@
 {
   "name": "partystate-server",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "source": "src/index.ts",
   "main": "dist/main.js",
@@ -14,10 +14,10 @@
     "@parcel/packager-ts": "^2.9.3",
     "@parcel/transformer-typescript-types": "^2.9.3",
     "parcel": "latest",
+    "partykit": "0.0.0-18c0543",
     "typescript": "^5.1.6"
   },
   "dependencies": {
-    "immer": "^10.0.2",
-    "partykit": "^0.0.0-e57200d"
+    "immer": "^10.0.2"
   }
 }
