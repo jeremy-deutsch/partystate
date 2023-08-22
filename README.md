@@ -4,6 +4,12 @@ Remote state management for PartyKit
 
 Docs to come!
 
+## Install
+
+```sh
+npm install partystate-server partystate-svelte
+```
+
 ## Example usage
 
 ```typescript
